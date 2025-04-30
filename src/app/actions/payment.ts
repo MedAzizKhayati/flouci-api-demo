@@ -25,7 +25,28 @@ export type PaymentResponse = {
   data?: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   error?: any;
+  exchangeRate?: number;
 };
+
+// Fetch the latest EUR to TND exchange rate
+async function getLatestExchangeRate(): Promise<number> {
+  try {
+    // Use a free exchange rate API
+    const response = await fetch('https://open.er-api.com/v6/latest/EUR');
+    const data = await response.json();
+    
+    // Extract the TND rate (Tunisian Dinar)
+    if (data.rates && data.rates.TND) {
+      return data.rates.TND;
+    }
+    
+    // Fallback to a default rate if API fails
+    return 3.37; // Default exchange rate as of April 2025
+  } catch (error) {
+    console.error('Failed to fetch exchange rate:', error);
+    return 3.37; // Default exchange rate as fallback
+  }
+}
 
 export async function createPayment(
   formData: FormData
@@ -44,11 +65,14 @@ export async function createPayment(
       };
     }
 
+    // Get real-time exchange rate
+    const exchangeRate = await getLatestExchangeRate();
+    
     // Convert amount from euros to millimes (Tunisian currency unit)
-    // 1 EUR ≈ 3.37 TND as of April 2025
+    // 1 EUR to TND based on real-time rate
     // 1 TND = 1000 millimes
     const euroAmount = validatedFields.data.amount;
-    const millimesAmount = Math.round(euroAmount * 3.37 * 1000);
+    const millimesAmount = Math.round(euroAmount * exchangeRate * 1000);
 
     // Prepare the payload for Flouci API
     const payload = {
@@ -79,6 +103,7 @@ export async function createPayment(
         ? "Payment link generated successfully"
         : "Failed to generate payment link",
       data: responseData,
+      exchangeRate, // Include the exchange rate in the response
     };
   } catch (error) {
     console.error("Payment creation error:", error);

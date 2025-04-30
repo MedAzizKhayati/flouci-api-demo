@@ -38,6 +38,7 @@ const formSchema = z.object({
 
 // API constants - duplicated here to show in the UI
 const API_URL = "https://developers.flouci.com/api/generate_payment";
+const APP_TOKEN_DISPLAY = "***************"; // Redacted for UI display
 
 export default function PaymentForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -48,6 +49,8 @@ export default function PaymentForm() {
     payload: any;
     euroAmount: number;
     millimesAmount: number;
+    exchangeRate?: number;
+    isLiveRate: boolean;
   } | null>(null);
 
   // Initialize form
@@ -63,13 +66,22 @@ export default function PaymentForm() {
     setIsSubmitting(true);
 
     try {
-      // Prepare mock request details to display in UI
+      // Submit the payment through server action
+      const formData = new FormData();
+      formData.append("amount", data.amount.toString());
+      
+      const result = await createPayment(formData);
+      setResponse(result);
+      
+      // Prepare request details to display in UI with the real exchange rate
       const euroAmount = data.amount;
-      const millimesAmount = Math.round(euroAmount * 3.37 * 1000);
+      const exchangeRate = result.exchangeRate || 3.37; // Use the real rate or fall back to default
+      const isLiveRate = !!result.exchangeRate; // Check if we got a real exchange rate from the API
+      const millimesAmount = Math.round(euroAmount * exchangeRate * 1000);
 
       // Create redacted payload to show in UI (hiding secret)
       const mockPayload = {
-        app_token: "<api-token>",
+        app_token: APP_TOKEN_DISPLAY,
         app_secret: "***************", // Redacted for security
         accept_card: "true",
         amount: millimesAmount.toString(),
@@ -79,20 +91,23 @@ export default function PaymentForm() {
         developer_tracking_id: `payment_${Date.now()}`,
       };
 
-      // Save request details for display
+      // Save request details for display with the real exchange rate
       setRequestDetails({
         url: API_URL,
         payload: mockPayload,
         euroAmount,
         millimesAmount,
+        exchangeRate,
+        isLiveRate
       });
-
-      // Actually submit the payment
-      const formData = new FormData();
-      formData.append("amount", data.amount.toString());
-
-      const result = await createPayment(formData);
-      setResponse(result);
+      
+      // Log exchange rate details for debugging
+      console.log("Exchange rate information:", {
+        receivedFromServer: result.exchangeRate,
+        usedInCalculation: exchangeRate,
+        isLiveRate
+      });
+      
     } catch (error) {
       console.error("Payment submission error:", error);
       setResponse({
@@ -171,9 +186,16 @@ export default function PaymentForm() {
                   {requestDetails.euroAmount} EUR ≈{" "}
                   {requestDetails.millimesAmount} millimes
                 </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  (1 EUR ≈ 3.37 TND, 1 TND = 1000 millimes as of April 2025)
-                </p>
+                <div className="flex items-center mt-1">
+                  <p className="text-xs text-gray-500">
+                    (1 EUR ≈ {requestDetails.exchangeRate?.toFixed(4)} TND, 1 TND = 1000 millimes)
+                  </p>
+                  {requestDetails.isLiveRate && (
+                    <span className="ml-1 text-xs px-1.5 py-0.5 bg-green-100 text-green-800 font-medium rounded-full">
+                      Live Rate
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -190,9 +212,7 @@ export default function PaymentForm() {
       {response && (
         <Card className="w-full mt-6 shadow-lg">
           <CardHeader>
-            <CardTitle
-              className={response.success ? "text-green-600" : "text-red-600"}
-            >
+            <CardTitle className={response.success ? "text-green-600" : "text-red-600"}>
               {response.success ? "Payment Link Generated" : "Error"}
             </CardTitle>
           </CardHeader>
@@ -200,11 +220,7 @@ export default function PaymentForm() {
             <div className="space-y-4">
               <div>
                 <h3 className="font-medium text-sm">Status:</h3>
-                <p
-                  className={
-                    response.success ? "text-green-600" : "text-red-600"
-                  }
-                >
+                <p className={response.success ? "text-green-600" : "text-red-600"}>
                   {response.message}
                 </p>
               </div>
@@ -224,9 +240,7 @@ export default function PaymentForm() {
                   {response.data?.payment_url && (
                     <Button
                       className="w-full"
-                      onClick={() =>
-                        window.open(response.data.payment_url, "_blank")
-                      }
+                      onClick={() => window.open(response.data.payment_url, "_blank")}
                     >
                       Open Payment Page
                     </Button>
@@ -236,9 +250,7 @@ export default function PaymentForm() {
                   {response.data?.result?.link && (
                     <Button
                       className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                      onClick={() =>
-                        window.open(response.data.result.link, "_blank")
-                      }
+                      onClick={() => window.open(response.data.result.link, "_blank")}
                     >
                       <span className="flex items-center justify-center">
                         <svg
