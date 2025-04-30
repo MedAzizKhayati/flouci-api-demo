@@ -12,7 +12,7 @@ export default function Navbar() {
         </div>
         <nav className="flex items-center space-x-4">
           <Link 
-            href="https://github.com/yourusername/flouci-api-demo" 
+            href="https://github.com/medazizkhayati/flouci-api-demo" 
             target="_blank"
             rel="noreferrer"
           >
@@ -36,7 +36,7 @@ export default function Navbar() {
             </Button>
           </Link>
           <Link 
-            href="https://developers.flouci.com/docs" 
+            href="https://flouci.stoplight.io/docs/flouci-payment-apis/455b330c10e0d-en-flouci-payment-api" 
             target="_blank"
             rel="noreferrer"
           >
