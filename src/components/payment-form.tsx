@@ -44,6 +44,7 @@ export default function PaymentForm() {
   const [response, setResponse] = useState<PaymentResponse | null>(null);
   const [requestDetails, setRequestDetails] = useState<{
     url: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     payload: any;
     euroAmount: number;
     millimesAmount: number;
